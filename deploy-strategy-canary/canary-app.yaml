@@ -15,7 +15,7 @@ spec:
       containers:
         - name: helloworld
           # enter the path to your image, be sure to include the correct region prefix
-          image: lhr.ocir.io/orasejapan/canary/canary-app:${BUILDRUN_HASH}
+          image: <your-region>.ocir.io/<your-object-storage-namespace>/canary/canary-app:${BUILDRUN_HASH}
           ports:
             - containerPort: 80
 ---
