@@ -4,7 +4,64 @@ Sample Code for Blue-Green Deployment and Canary Release in OCI DevOps
 
 ## BLUE-GREEN Demo Environment
 
-### OKE
+デモ環境概要図
+
+![デモ環境概要図](./images/74.png)
+
+OCI DevOpsにおけるブルー/グリーンデプロイは、最初のデプロイがblue namespace、次のデプロイは、green namespaceとなります。その後は、blue、greenと繰り返される仕組みです。
+
+この仕組みは、OCI DevOpsがIngressのannotations設定を変更することで実現しています。
+
+namespaceA(ここではblue)にデプロイされた時は、namespaceB（ここではgreen）の `canary-weight` が `0` となり、namesapceB（ここではgreen）にデプロイされた場合は、`canary-weight` が `100` となります。
+
+namespaceA(ここではblue)にデプロイ
+
+```
+kubectl get ingress -o yaml -n green
+```
+```
+apiVersion: v1
+items:
+- apiVersion: networking.k8s.io/v1
+  kind: Ingress
+  metadata:
+    annotations:
+      kubernetes.io/ingress.class: nginx
+      nginx.ingress.kubernetes.io/canary: "true"
+      nginx.ingress.kubernetes.io/canary-by-header: redirect-to-namespaceB
+      nginx.ingress.kubernetes.io/canary-weight: "0"
+・
+・＜省略＞
+・
+```
+
+namesapceB（ここではgreen）にデプロイ
+
+```
+kubectl get ingress -o yaml -n green
+```
+```
+apiVersion: v1
+items:
+- apiVersion: networking.k8s.io/v1
+  kind: Ingress
+  metadata:
+    annotations:
+      kubernetes.io/ingress.class: nginx
+      nginx.ingress.kubernetes.io/canary: "true"
+      nginx.ingress.kubernetes.io/canary-by-header: redirect-to-namespaceB
+      nginx.ingress.kubernetes.io/canary-weight: "100"
+・
+・＜省略＞
+・
+```
+Shift Traffic
+
+![Shift Traffic](./images/75.png)
+
+![Shift Traffic](./images/76.png)
+
+### OKE Setup
 
 以下チュートリアルを参照して、Kubernetesクラスタを構築します。
 
@@ -15,7 +72,7 @@ Sample Code for Blue-Green Deployment and Canary Release in OCI DevOps
 1. OKEクラスターのプロビジョニング
 2. CLI実行環境(Cloud Shell)の準備
 
-### OCIR
+### OCIR Setup
 
 以下チュートリアルを参照して、OCIRにリポジトリを作成します。
 
@@ -148,62 +205,62 @@ OCI DevOps環境の事前準備はこちらを参照して作成します。
 トピック名：devops-deploy-strategy
 プロジェクト名：blue-green
 
-#### 2. 環境の作成
+#### 2. 環境 作成
 
 作成したプロジェクトを選択して、「環境」を選択します。  
 左メニューから「環境」を選択します。
 
-![環境の作成](./images/01.png)
+![環境 作成](./images/01.png)
 
 「環境の作成」ボタンをクリックします。
 
-![環境の作成](./images/02.png)
+![環境 作成](./images/02.png)
 
 以下の設定を行い、「次」ボタンをクリックします。
 
 - 環境タイプ：Oracle Kubernetesエンジン  
 - 名前：blue-green-cluster
 
-![環境の作成](./images/03.png)
+![環境 作成](./images/03.png)
 
-![環境の作成](./images/04.png)
+![環境 作成](./images/04.png)
 
-以下の設定を行って、「環境の作成」ボタンをクリックします。
+以下の設定を行って、「環境 作成」ボタンをクリックします。
 
 - リージョン：対象クラスタのリージョン  
 - コンパートメント：対象のコンパートメント
 - クラスタ：対象のクラスタ（ここでは cluster1）
 
-![環境の作成](./images/05.png)
+![環境 作成](./images/05.png)
 
-![環境の作成](./images/06.png)
+![環境 作成](./images/06.png)
 
 パンくずリストから「blue-green」を選択します。
 
-![環境の作成](./images/07.png)
+![環境 作成](./images/07.png)
 
-#### 3. コード・リポジトリの作成
+#### 3. コード・リポジトリ 作成
 
 左メニューから「コード・リポジトリ」を選択します。
 
-![コード・リポジトリの作成](./images/08.png)
+![コード・リポジトリ 作成](./images/08.png)
 
 「リポジトリの作成」ボタンをクリックします。
 
-![コード・リポジトリの作成](./images/09.png)
+![コード・リポジトリ 作成](./images/09.png)
 
 以下の設定を行い、「リポジトリの作成」ボタンをクリックします。
 
 - リポジトリ名：strategy-blue-green  
 - デフォルト・ブランチ・オプション：main
 
-![コード・リポジトリの作成](./images/10.png)
+![コード・リポジトリ 作成](./images/10.png)
 
-![コード・リポジトリの作成](./images/09.png)
+![コード・リポジトリ 作成](./images/09.png)
 
 「HTTPS」ボタンをクリックして、コマンドの「コピー」テキストをクリック後、コマンドを実行してクローンします。
 
-![コード・リポジトリの作成](./images/11.png)
+![コード・リポジトリ 作成](./images/11.png)
 
 クローンしたディレクトリにサンプルコードをコピーします。
 
@@ -258,9 +315,9 @@ Branch 'main' set up to track remote branch 'main' from 'origin'.
 
 リポジトリを確認すると、サンプルコードが表示されています。
 
-![コード・リポジトリの作成](./images/12.png)
+![コード・リポジトリ 作成](./images/12.png)
 
-#### 4. アーティファクトの作成
+#### 4. アーティファクト 作成
 
 Kubernetesクラスタにデプロイする際に必要となるマニフェストファイルをアーティファクトレジストリにアップロードします。最初にアーティファクトレジストリにリポジトリを作成します。
 
@@ -325,11 +382,11 @@ spec:
 
 ハンバーガーメニューから「開発者サービス」-「アーティファクト・レジストリ」を選択します。
 
-![アーティファクトの作成](./images/13.png)
+![アーティファクト 作成](./images/13.png)
 
 「リポジトリの作成」ボタンをクリックします。
 
-![アーティファクトの作成](./images/09.png)
+![アーティファクト 作成](./images/09.png)
 
 以下の設定を行い、「作成」ボタンをクリックします。
 
@@ -337,13 +394,13 @@ spec:
 - コンパートメント：対象となるコンパートメント
 - 不変アーティファクト：チェックを外す
 
-![アーティファクトの作成](./images/14.png)
+![アーティファクト 作成](./images/14.png)
 
-![アーティファクトの作成](./images/15.png)
+![アーティファクト 作成](./images/15.png)
 
 マニフェストファイルをアップロードします。「アーティファクトのアップロード」ボタンをクリックします。
 
-![アーティファクトの作成](./images/16.png)
+![アーティファクト 作成](./images/16.png)
 
 以下の設定を行い、「コピー」テキストをクリックします。
 
@@ -351,7 +408,7 @@ spec:
 - バージョン：1
 - Uplad method：Cloud Shell
 
-![アーティファクトの作成](./images/17.png)
+![アーティファクト 作成](./images/17.png)
 
 コピーした内容をペーストして、「./＜file-name＞」の箇所を「./blue-grenn-app.yaml」に変更してコマンドを実行します。
 
@@ -384,21 +441,21 @@ oci artifacts generic artifact upload-by-path \
 
 「閉じる」ボタンをクリックします。
 
-![アーティファクトの作成](./images/18.png)
+![アーティファクト 作成](./images/18.png)
 
 ブラウザを更新するとアップロードしたアーティファクトがリストされます。
 
-![アーティファクトの作成](./images/19.png)
+![アーティファクト 作成](./images/19.png)
 
 OCI DevOpsの「blue-green」プロジェクト画面に戻って、アーティファクトに対象のOCIRとアーティファクトレジストリのリポジトリを登録します。
 
 OCI DevOpsの左目メニューから「アーティファクト」を選択します。
 
-![アーティファクトの作成](./images/20.png)
+![アーティファクト 作成](./images/20.png)
 
 「アーティファクトの追加」ボタンをクリックします。
 
-![アーティファクトの作成](./images/21.png)
+![アーティファクト 作成](./images/21.png)
 
 以下の設定を行い、「追加」ボタンをクリックします。
 
@@ -406,20 +463,20 @@ OCI DevOpsの左目メニューから「アーティファクト」を選択し�
 - タイプ：コンテナ・イメージ・リポジトリ
 - コンテナ・レジストリのイメージへの完全修飾パスを入力してください：マニフェストファイルに指定したリポジトリを設定してください
 
-![アーティファクトの作成](./images/22.png)
+![アーティファクト 作成](./images/22.png)
 
-![アーティファクトの作成](./images/23.png)
+![アーティファクト 作成](./images/23.png)
 
 「アーティファクトの追加」ボタンをクリックします。
 
-![アーティファクトの作成](./images/21.png)
+![アーティファクト 作成](./images/21.png)
 
 以下の設定を行い、「選択」ボタンをクリックします。
 
 - 名前：artifact-repogitory-bg
 - タイプ：Kubernetesマニフェスト
 
-![アーティファクトの作成](./images/24.png)
+![アーティファクト 作成](./images/24.png)
 
 以下の設定を行い、「選択」ボタンをクリックします。
 
@@ -427,60 +484,60 @@ OCI DevOpsの左目メニューから「アーティファクト」を選択し�
 - コンパートメント：対象となるコンパートメント
 - アーティファクト・レジストリ・リポジトリ：artifact-repository-bg
 
-![アーティファクトの作成](./images/25.png)
+![アーティファクト 作成](./images/25.png)
 
-![アーティファクトの作成](./images/26.png)
+![アーティファクト 作成](./images/26.png)
 
 「アーティファクト」の「選択」ボタンをクリックします。
 
-![アーティファクトの作成](./images/27.png)
+![アーティファクト 作成](./images/27.png)
 
 「blue-green-app.yaml:v1」にチェックを入れて、「選択」ボタンをクリックします。
 
-![アーティファクトの作成](./images/28.png)
+![アーティファクト 作成](./images/28.png)
 
-![アーティファクトの作成](./images/26.png)
+![アーティファクト 作成](./images/26.png)
 
 最後に「追加」ボタンをクリックします。
 
-![アーティファクトの作成](./images/23.png)
+![アーティファクト 作成](./images/23.png)
 
 登録したOCIRとアーティファクト・レジストリのリポジトリがリストされていることを確認します。
 
-![アーティファクトの作成](./images/29.png)
+![アーティファクト 作成](./images/29.png)
 
 パンくずリストから「blue-green」を選択します。
 
-![アーティファクトの作成](./images/30.png)
+![アーティファクト 作成](./images/30.png)
 
-#### 5. デプロイメント・パイプラインの作成
+#### 5. デプロイメント・パイプライン 作成
 
 デプロイメント・パイプラインを作成します。  
 左メニューから「デプロイメント・パイプライン」を選択します。
 
-![デプロイメント・パイプラインの作成](./images/31.png)
+![デプロイメント・パイプライン 作成](./images/31.png)
 
 「パイプラインの作成」ボタンをクリックします。
 
-![デプロイメント・パイプラインの作成](./images/32.png)
+![デプロイメント・パイプライン 作成](./images/32.png)
 
 以下の設定を行い、「パイプラインの作成」ボタンをクリックします。
 
 - パイプライン名：deploy-to-oke
 
-![デプロイメント・パイプラインの作成](./images/33.png)
+![デプロイメント・パイプライン 作成](./images/33.png)
 
-![デプロイメント・パイプラインの作成](./images/32.png)
+![デプロイメント・パイプライン 作成](./images/32.png)
 
 「ステージの追加」ボタンをクリックします。
 
-![デプロイメント・パイプラインの作成](./images/34.png)
+![デプロイメント・パイプライン 作成](./images/34.png)
 
 「ブルー/グリーン戦略」を選択して、「次」ボタンをクリックします。
 
-![デプロイメント・パイプラインの作成](./images/35.png)
+![デプロイメント・パイプライン 作成](./images/35.png)
 
-![デプロイメント・パイプラインの作成](./images/04.png)
+![デプロイメント・パイプライン 作成](./images/04.png)
 
 以下の設定を行い、「アーティファクトの選択」ボタンをクリックします。
 
@@ -491,72 +548,72 @@ OCI DevOpsの左目メニューから「アーティファクト」を選択し�
 - ネームスペースB：green
 - NGINXイングレス名：helloworld-ing
 
-![デプロイメント・パイプラインの作成](./images/36.png)
+![デプロイメント・パイプライン 作成](./images/36.png)
 
 「artifact-repository-bg」を選択して、「変更の保存」ボタンをクリックします。
 
-![デプロイメント・パイプラインの作成](./images/37.png)
+![デプロイメント・パイプライン 作成](./images/37.png)
 
-![デプロイメント・パイプラインの作成](./images/38.png)
+![デプロイメント・パイプライン 作成](./images/38.png)
 
 「次」ボタンをクリックします。
 
-![デプロイメント・パイプラインの作成](./images/04.png)
+![デプロイメント・パイプライン 作成](./images/04.png)
 
 以下の設定を行い、「追加」ボタンをクリックします。
 
 - 承認制御：有効
 - ステージ名：confirm
 
-![デプロイメント・パイプラインの作成](./images/39.png)
+![デプロイメント・パイプライン 作成](./images/39.png)
 
-![デプロイメント・パイプラインの作成](./images/23.png)
+![デプロイメント・パイプライン 作成](./images/23.png)
 
 完了と表示されることを確認して、「閉じる」ボタンをクリックします。
 
-![デプロイメント・パイプラインの作成](./images/40.png)
+![デプロイメント・パイプライン 作成](./images/40.png)
 
-![デプロイメント・パイプラインの作成](./images/41.png)
+![デプロイメント・パイプライン 作成](./images/41.png)
 
 パンくずリストから「blue-green」を選択します。
 
-![デプロイメント・パイプラインの作成](./images/42.png)
+![デプロイメント・パイプライン 作成](./images/42.png)
 
-#### 6. ビルド・パイプラインの作成
+#### 6. ビルド・パイプライン 作成
 
 ビルド・パイプラインを作成します。  
 左メニューから「ビルド・パイプライン」を選択します。
 
-![ビルド・パイプラインの作成](./images/43.png)
+![ビルド・パイプライン 作成](./images/43.png)
 
 「ビルド・パイプラインの作成」ボタンをクリックします。
 
-![ビルド・パイプラインの作成](./images/44.png)
+![ビルド・パイプライン 作成](./images/44.png)
 
 以下の設定を行い、「作成」ボタンをクリックします。
 
 - 名前：image-build-ship
 
-![ビルド・パイプラインの作成](./images/45.png)
+![ビルド・パイプライン 作成](./images/45.png)
 
-![ビルド・パイプラインの作成](./images/15.png)
+![ビルド・パイプライン 作成](./images/15.png)
 
 「ステージの追加」ボタンをクリックします。
 
-![ビルド・パイプラインの作成](./images/34.png)
+![ビルド・パイプライン 作成](./images/34.png)
 
 「マネージド・ビルド」を選択して、「次」ボタンをクリックします。
 
-![ビルド・パイプラインの作成](./images/46.png)
+![ビルド・パイプライン 作成](./images/46.png)
 
-![ビルド・パイプラインの作成](./images/04.png)
+![ビルド・パイプライン 作成](./images/04.png)
 
 以下の設定を行い、「選択」ボタンをクリックします。
 
 - ステージ名：container-image-build
 - ビルド仕様ファイル・パス：build_spec.yaml
 
-![ビルド・パイプラインの作成](./images/47.png)
+![ビルド・パイプライン 作成](./images/47.png)
 
 以下の設定を行い、「選択」ボタンをクリックします。
 
@@ -564,127 +621,130 @@ OCI DevOpsの左目メニューから「アーティファクト」を選択し�
 - strategy-blue-grenn にチェックを入れる
 - ブランチの選択：main
 
-![ビルド・パイプラインの作成](./images/48.png)
+![ビルド・パイプライン 作成](./images/48.png)
 
-![ビルド・パイプラインの作成](./images/26.png)
+![ビルド・パイプライン 作成](./images/26.png)
 
 「追加」ボタンをクリックします。
 
-![ビルド・パイプラインの作成](./images/23.png)
+![ビルド・パイプライン 作成](./images/23.png)
 
 「+」をクリックして、「ステージの追加」を選択します。
 
-![ビルド・パイプラインの作成](./images/49.png)
+![ビルド・パイプライン 作成](./images/49.png)
 
 「アーティファクトの配信」を選択して、「次」ボタンをクリックします。
 
-![ビルド・パイプラインの作成](./images/50.png)
+![ビルド・パイプライン 作成](./images/50.png)
 
-![ビルド・パイプラインの作成](./images/04.png)
+![ビルド・パイプライン 作成](./images/04.png)
 
 以下の設定を行い、「アーティファクトの選択」ボタンをクリックします。
 
 - ステージ名：container-image-ship
 
-![ビルド・パイプラインの作成](./images/51.png)
+![ビルド・パイプライン 作成](./images/51.png)
 
 「ocir-repository-bg」にチェックを入れて、「追加」ボタンをクリックします。
 
-![ビルド・パイプラインの作成](./images/52.png)
+![ビルド・パイプライン 作成](./images/52.png)
 
-![ビルド・パイプラインの作成](./images/53.png)
+![ビルド・パイプライン 作成](./images/53.png)
 
 「ビルド構成/結果アーティファクト名」に「bg_image」と設定を行い、「追加」ボタンをクリックします。
 
-![ビルド・パイプラインの作成](./images/54.png)
+![ビルド・パイプライン 作成](./images/54.png)
 
-![ビルド・パイプラインの作成](./images/23.png)
+![ビルド・パイプライン 作成](./images/23.png)
 
 「+」をクリックして、「ステージの追加」を選択します。
 
-![ビルド・パイプラインの作成](./images/55.png)
+![ビルド・パイプライン 作成](./images/55.png)
 
 「デプロイメントのトリガー」を選択して、「次」ボタンをクリックします。
 
-![ビルド・パイプラインの作成](./images/56.png)
+![ビルド・パイプライン 作成](./images/56.png)
 
-![ビルド・パイプラインの作成](./images/04.png)
+![ビルド・パイプライン 作成](./images/04.png)
 
 以下の設定を行い、「デプロイメント・パイプラインの選択」ボタンをクリックします。
 
 - ステージ名：connect-to-deployment-pipeline
 
-![ビルド・パイプラインの作成](./images/57.png)
+![ビルド・パイプライン 作成](./images/57.png)
 
 「deploy-to-oke」にチェックを入れて、「変更の保存」ボタンをクリックします。
 
-![ビルド・パイプラインの作成](./images/58.png)
+![ビルド・パイプライン 作成](./images/58.png)
 
-![ビルド・パイプラインの作成](./images/38.png)
+![ビルド・パイプライン 作成](./images/38.png)
 
 最後に「追加」ボタンをクリックします。
 
-![ビルド・パイプラインの作成](./images/23.png)
+![ビルド・パイプライン 作成](./images/23.png)
 
 パンくずリストから「blue-green」を選択します。
 
-![ビルド・パイプラインの作成](./images/59.png)
+![ビルド・パイプライン 作成](./images/59.png)
 
-#### 7. トリガーの作成
+#### 7. トリガー 作成
 
 ソースコード更新後のプッシュをトリガーにBlue-Greenデプロイを実行する設定を行います。  
 左メニューから「トリガー」を選択します。
 
-![トリガーの作成](./images/60.png)
+![トリガー 作成](./images/60.png)
 
 「トリガーの作成」ボタンをクリックします。
 
-![トリガーの作成](./images/61.png)
+![トリガー 作成](./images/61.png)
 
 以下の設定を行い、「選択」ボタンをクリックします。
 
 - 名前：deploy-strategy-bg
 - ソース接続：OCIコード・リポジトリ
 
-![トリガーの作成](./images/62.png)
+![トリガー 作成](./images/62.png)
 
 「strategy-blue-grenn」にチェックを入れて、「変更の保存」ボタンをクリックします。
 
-![トリガーの作成](./images/63.png)
+![トリガー 作成](./images/63.png)
 
-![トリガーの作成](./images/38.png)
+![トリガー 作成](./images/38.png)
 
 「アクションの追加」ボタンをクリックします。
 
-![トリガーの作成](./images/64.png)
+![トリガー 作成](./images/64.png)
 
 「プッシュ」にチェックを入れて、「選択」ボタンをクリックします。
 
-![トリガーの作成](./images/65.png)
+![トリガー 作成](./images/65.png)
 
 「image-build-ship」にチェックを入れて、「選択」ボタンをクリックします。
 
-![トリガーの作成](./images/66.png)
+![トリガー 作成](./images/66.png)
 
-![トリガーの作成](./images/26.png)
+![トリガー 作成](./images/26.png)
 
 「アクションの追加」ボタンをクリックします。
 
-![トリガーの作成](./images/67.png)
+![トリガー 作成](./images/67.png)
 
 最後に、「作成」ボタンをクリックします。
 
-![トリガーの作成](./images/15.png)
+![トリガー 作成](./images/15.png)
 
 以上で完了です。
 
-### Blue-Green Deploy Execute
+### ブルー/グリーンデプロイ 実行
 
 実際にブルー/グリーンデプロイを実行するために、ソースコードを変更します。
 
 ```
 cd strategy-blue-green
 ```
+
+表示されるテキストの「Hello, Blue deploy !!」を「Hello, Blue deploy first!!」に変更します。
+
 ```
 vim content.html
 ```
@@ -700,7 +760,7 @@ vim content.html
 </head>
 <body>
 
-<h1>Hello, Blue deploy first!!</h1> #「Blue deploy first!!」に変更
+<h1>Hello, Blue deploy !!</h1> #「Blue deploy first!!」に変更
 
 </body>
 </html>
@@ -744,23 +804,22 @@ Branch 'main' set up to track remote branch 'main' from 'origin'.
 プッシュ処理をトリガーにビルド・パイプラインが実行されます。  
 ビルド・パイプラインの成功後、デプロイメント・パイプラインが実行されます。
 
-![ブルー/グリーンデプロイの実行](./images/68.png)
+![ブルー/グリーンデプロイ 実行](./images/68.png)
 
 デプロイメント・パイプラインでは、承認処理をする必要があります。  
 ハンバーガーメニューをクリックして、「承認」を選択します。
 
-![ブルー/グリーンデプロイの実行](./images/69.png)
+![ブルー/グリーンデプロイ 実行](./images/69.png)
 
 「OK」と入力して、「承認」ボタンをクリックします。
 
-![ブルー/グリーンデプロイの実行](./images/70.png)
+![ブルー/グリーンデプロイ 実行](./images/70.png)
 
 デプロイメント・パイプラインが成功したことを確認します。
 
-![ブルー/グリーンデプロイの実行](./images/71.png)
+![ブルー/グリーンデプロイ 実行](./images/71.png)
 
 Kubernetesクラスタのblue namespaceにデプロイされていることを確認します。
-最初のデプロイは、blue namespaceに行われます。次のデプロイは、green namespaceとなります。その後は、blueからgreenと繰り返される仕様です。
 
 ```
 kubectl get pods -n blue
@@ -788,7 +847,7 @@ helloworld-ing   <none>   *       132.xxx.xxx.xxx   80      14m
 http://132.xxx.xxx.xxx/content.html
 ```
 
-![ブルー/グリーンデプロイの実行](./images/72.png)
+![ブルー/グリーンデプロイ 実行](./images/72.png)
 
 再度デプロイを実行して、green namespaceにデプロイされることを確認します。  
 ソースコードを変更します。
@@ -874,7 +933,9 @@ helloworld-ing   <none>   *       132.xxx.xxx.xxx   80      14m
 http://132.xxx.xxx.xxx/content.html
 ```
 
-![ブルー/グリーンデプロイの実行](./images/73.png)
+![ブルー/グリーンデプロイ 実行](./images/73.png)
+
+以上で完了です。
 
 ## CANARY Demo Environment
 
