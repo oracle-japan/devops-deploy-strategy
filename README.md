@@ -489,7 +489,7 @@ OCI DevOpsの左目メニューから「アーティファクト」を選択し�
 - 環境：blue-green-cluster
 - ネームスペースA：blue
 - ネームスペースB：green
-- NGINXイングレス名：ingress-nginx
+- NGINXイングレス名：helloworld-ing
 
 ![デプロイメント・パイプラインの作成](./images/36.png)
 
@@ -677,6 +677,204 @@ OCI DevOpsの左目メニューから「アーティファクト」を選択し�
 ![トリガーの作成](./images/15.png)
 
 以上で完了です。
+
+### Blue-Green Deploy Execute
+
+実際にブルー/グリーンデプロイを実行するために、ソースコードを変更します。
+
+```
+cd strategy-blue-green
+```
+```
+vim content.html
+```
+```
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+
+<meta charset="UTF-8">
+
+<title>Blue-Green</title>
+
+</head>
+<body>
+
+<h1>Hello, Blue deploy first!!</h1> #「Blue deploy first!!」に変更
+
+</body>
+</html>
+```
+
+コード・リポジトリにプッシュします。
+
+```
+git add -A .
+```
+```
+git commit -m "first commit"
+```
+```
+[main 03ffea8] first commit
+ 5 files changed, 785 insertions(+)
+ create mode 100644 Dockerfile
+ create mode 100644 blue-green-app.yaml
+ create mode 100644 build_spec.yaml
+ create mode 100644 content.html
+ create mode 100644 ingress-controller.yaml
+```
+```
+git branch -M main
+```
+```
+git push -u origin main
+```
+```
+Enumerating objects: 8, done.
+Counting objects: 100% (8/8), done.
+Delta compression using up to 2 threads
+Compressing objects: 100% (7/7), done.
+Writing objects: 100% (7/7), 3.79 KiB | 1.89 MiB/s, done.
+Total 7 (delta 0), reused 0 (delta 0), pack-reused 0
+To https://devops.scmservice.uk-london-1.oci.oraclecloud.com/namespaces/orasejapan/projects/blue-green/repositories/strategy-blue-green
+   aca6740..03ffea8  main -> main
+Branch 'main' set up to track remote branch 'main' from 'origin'.
+```
+
+プッシュ処理をトリガーにビルド・パイプラインが実行されます。  
+ビルド・パイプラインの成功後、デプロイメント・パイプラインが実行されます。
+
+![ブルー/グリーンデプロイの実行](./images/68.png)
+
+デプロイメント・パイプラインでは、承認処理をする必要があります。  
+ハンバーガーメニューをクリックして、「承認」を選択します。
+
+![ブルー/グリーンデプロイの実行](./images/69.png)
+
+「OK」と入力して、「承認」ボタンをクリックします。
+
+![ブルー/グリーンデプロイの実行](./images/70.png)
+
+デプロイメント・パイプラインが成功したことを確認します。
+
+![ブルー/グリーンデプロイの実行](./images/71.png)
+
+Kubernetesクラスタのblue namespaceにデプロイされていることを確認します。
+最初のデプロイは、blue namespaceに行われます。次のデプロイは、green namespaceとなります。その後は、blueからgreenと繰り返される仕様です。
+
+```
+kubectl get pods -n blue
+```
+```
+NAME                          READY   STATUS    RESTARTS   AGE
+helloworld-5d66bf56f4-b69sz   1/1     Running   0          13m
+helloworld-5d66bf56f4-hvvnk   1/1     Running   0          13m
+helloworld-5d66bf56f4-pdfbb   1/1     Running   0          13m
+```
+
+Ingressに割り当てられたEXTERNAL-IPを確認します。
+
+```
+kubectl get ingress -n blue
+```
+```
+NAME             CLASS    HOSTS   ADDRESS           PORTS   AGE
+helloworld-ing   <none>   *       132.xxx.xxx.xxx   80      14m
+```
+
+ブラウザからアクセスします。
+
+```
+http://132.xxx.xxx.xxx/content.html
+```
+
+![ブルー/グリーンデプロイの実行](./images/72.png)
+
+再度デプロイを実行して、green namespaceにデプロイされることを確認します。  
+ソースコードを変更します。
+
+```
+vim content.html
+```
+```
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+
+<meta charset="UTF-8">
+
+<title>Blue-Green</title>
+
+</head>
+<body>
+
+<h1>Hello, Green deploy first!!</h1> #「Green deploy first!!」に変更
+
+</body>
+</html>
+```
+
+コード・リポジトリにプッシュします。
+
+```
+git add -A .
+```
+```
+git commit -m "second commit"
+```
+```
+[main db77643] second commit
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+```
+```
+git branch -M main
+```
+```
+git push -u origin main
+```
+```
+Enumerating objects: 5, done.
+Counting objects: 100% (5/5), done.
+Delta compression using up to 2 threads
+Compressing objects: 100% (3/3), done.
+Writing objects: 100% (3/3), 292 bytes | 292.00 KiB/s, done.
+Total 3 (delta 2), reused 0 (delta 0), pack-reused 0
+remote: Resolving deltas: 100% (2/2)
+To https://devops.scmservice.uk-london-1.oci.oraclecloud.com/namespaces/orasejapan/projects/blue-green/repositories/strategy-blue-green
+   5f6b809..db77643  main -> main
+Branch 'main' set up to track remote branch 'main' from 'origin'.
+```
+
+このプッシュ処理をトリガーに、ビルド・パイプライン、デプロイメント・パイプラインが実行されて、デプロイされます。デプロイメント・パイプラインでは一回目と同様に承認処理を手動で実行します。
+
+```
+kubectl get pods -n green
+```
+```
+NAME                          READY   STATUS    RESTARTS   AGE
+helloworld-7cd5f9b688-g4sln   1/1     Running   0          5m24s
+helloworld-7cd5f9b688-mphp7   1/1     Running   0          5m24s
+helloworld-7cd5f9b688-xwfhv   1/1     Running   0          5m24s
+```
+
+Ingressに割り当てられたEXTERNAL-IPを確認します。  
+※ngress Controllerによりblue namespaceと同じEXTERNAL-IPとなります。
+
+```
+kubectl get ingress -n green
+```
+```
+NAME             CLASS    HOSTS   ADDRESS           PORTS   AGE
+helloworld-ing   <none>   *       132.xxx.xxx.xxx   80      14m
+```
+
+ブラウザからアクセスします。
+
+```
+http://132.xxx.xxx.xxx/content.html
+```
+
+![ブルー/グリーンデプロイの実行](./images/73.png)
 
 ## CANARY Demo Environment
 
