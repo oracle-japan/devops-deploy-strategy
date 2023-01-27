@@ -324,6 +324,9 @@ Kubernetesクラスタにデプロイする際に必要となるマニフェス�
 アップロードするマニフェストファイル内にある、コンテナイメージのパスを変更します。
 
 ```
+cd strategy-blue-green
+```
+```
 vim blue-green-app.yaml 
 ```
 ```
@@ -939,23 +942,9 @@ http://132.xxx.xxx.xxx/content.html
 
 ## CANARY Demo Environment
 
-ディレクトリを移動します。
+デモ環境概要図
 
-```
-cd ../deploy-strategy-canary/
-```
-```
-ls
-```
-```
-build_spec.yaml  canary-app.yaml  content.html  Dockerfile  ingress-controller.yaml
-```
-
-事前に取得したサンプルコードをプッシュするために、作成したリポジトリをクローンします。
-
-```
-git clone https://devops.scmservice.uk-london-1.oci.oraclecloud.com/namespaces/orasejapan/projects/blue-green/repositories/strategy-blue-green
-```
+![デモ環境概要図](./images/77.png)
 
 ### OKE
 
@@ -1062,7 +1051,7 @@ ingress-nginx-controller-admission   ClusterIP      10.96.101.214   <none>      
 kubectl create ns canary
 ```
 ```
-namespace/green created
+namespace/canary created
 ```
 
 canaryのNamespaceができていること確認します。
@@ -1083,3 +1072,569 @@ kube-system       Active   5h58m
 ```
 
 ### OCI DevOps Setup
+
+#### 1. プロジェクトの作成
+
+OCI DevOps環境の事前準備はこちらを参照して作成します。
+
+[Oracle Cloud Infrastructure(OCI) DevOps事前準備](https://oracle-japan.github.io/ocitutorials/cloud-native/devops-for-commons/)
+
+ここでは、以下の名前で作成します。
+
+トピック名：devops-deploy-strategy
+プロジェクト名：canary
+
+#### 2. 環境 作成
+
+作成したプロジェクトを選択して、「環境」を選択します。  
+左メニューから「環境」を選択します。
+
+![環境 作成](./images/01.png)
+
+「環境の作成」ボタンをクリックします。
+
+![環境 作成](./images/02.png)
+
+以下の設定を行い、「次」ボタンをクリックします。
+
+- 環境タイプ：Oracle Kubernetesエンジン  
+- 名前：canary-cluster
+
+![環境 作成](./images/78.png)
+
+![環境 作成](./images/04.png)
+
+以下の設定を行って、「環境 作成」ボタンをクリックします。
+
+- リージョン：対象クラスタのリージョン  
+- コンパートメント：対象のコンパートメント
+- クラスタ：対象のクラスタ（ここでは cluster1）
+
+![環境 作成](./images/05.png)
+
+![環境 作成](./images/06.png)
+
+パンくずリストから「canary」を選択します。
+
+![環境 作成](./images/07.png)
+
+#### 3. コード・リポジトリ 作成
+
+左メニューから「コード・リポジトリ」を選択します。
+
+![コード・リポジトリ 作成](./images/08.png)
+
+「リポジトリの作成」ボタンをクリックします。
+
+![コード・リポジトリ 作成](./images/09.png)
+
+以下の設定を行い、「リポジトリの作成」ボタンをクリックします。
+
+- リポジトリ名：strategy-canary  
+- デフォルト・ブランチ・オプション：main
+
+![コード・リポジトリ 作成](./images/80.png)
+
+![コード・リポジトリ 作成](./images/09.png)
+
+「HTTPS」ボタンをクリックして、コマンドの「コピー」テキストをクリック後、コマンドを実行してクローンします。
+
+![コード・リポジトリ 作成](./images/81.png)
+
+クローンしたディレクトリにサンプルコードをコピーします。
+
+```
+cp -pR devops-deploy-strategy/deploy-strategy-canary/* ./strategy-canary/
+```
+```
+ls strategy-canary/
+```
+```
+build_spec.yaml  canary-app.yaml  content.html  Dockerfile  ingress-controller.yaml
+```
+
+作成したリポジトリにサンプルコードをプッシュします。
+
+```
+cd strategy-canary
+```
+```
+git add -A .
+```
+```
+git commit -m "first commit"
+```
+```
+[main f70c893] first commit
+ 5 files changed, 787 insertions(+)
+ create mode 100644 Dockerfile
+ create mode 100644 build_spec.yaml
+ create mode 100644 canary-app.yaml
+ create mode 100644 content.html
+ create mode 100644 ingress-controller.yaml
+```
+
+```
+git branch -M main
+```
+```
+git push -u origin main
+```
+```
+Enumerating objects: 8, done.
+Counting objects: 100% (8/8), done.
+Delta compression using up to 2 threads
+Compressing objects: 100% (7/7), done.
+Writing objects: 100% (7/7), 3.82 KiB | 3.82 MiB/s, done.
+Total 7 (delta 0), reused 0 (delta 0), pack-reused 0
+To https://devops.scmservice.uk-london-1.oci.oraclecloud.com/namespaces/orasejapan/projects/canary/repositories/strategy-canary
+   0a0612a..f70c893  main -> main
+Branch 'main' set up to track remote branch 'main' from 'origin'.
+```
+
+リポジトリを確認すると、サンプルコードが表示されています。
+
+![コード・リポジトリ 作成](./images/82.png)
+
+#### 4. アーティファクト 作成
+
+Kubernetesクラスタにデプロイする際に必要となるマニフェストファイルをアーティファクトレジストリにアップロードします。最初にアーティファクトレジストリにリポジトリを作成します。
+
+アップロードするマニフェストファイル内にある、コンテナイメージのパスを変更します。
+
+```
+cd strategy-canary
+```
+```
+vim canary-app.yaml 
+```
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: helloworld
+spec:
+  selector:
+    matchLabels:
+      app: helloworld
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: helloworld
+    spec:
+      containers:
+        - name: helloworld
+          # enter the path to your image, be sure to include the correct region prefix
+          image: lhr.ocir.io/orasejapan/canary/canary-app:${BUILDRUN_HASH}
+          ports:
+            - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: helloworld
+  #annotations:
+   #service.beta.kubernetes.io/oci-load-balancer-shape: "100Mbps"
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 80
+  selector:
+    app: helloworld
+---
+# main-ingress.yaml with networking.k8s.io/v1 version
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: helloworld-ing
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+spec:
+  rules: 
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: helloworld
+                port:
+                  number: 80
+```
+
+ハンバーガーメニューから「開発者サービス」-「アーティファクト・レジストリ」を選択します。
+
+![アーティファクト 作成](./images/13.png)
+
+「リポジトリの作成」ボタンをクリックします。
+
+![アーティファクト 作成](./images/09.png)
+
+以下の設定を行い、「作成」ボタンをクリックします。
+
+- 名前：artifact-repository-canary
+- コンパートメント：対象となるコンパートメント
+- 不変アーティファクト：チェックを外す
+
+![アーティファクト 作成](./images/83.png)
+
+![アーティファクト 作成](./images/15.png)
+
+マニフェストファイルをアップロードします。「アーティファクトのアップロード」ボタンをクリックします。
+
+![アーティファクト 作成](./images/16.png)
+
+以下の設定を行い、「コピー」テキストをクリックします。
+
+- アーティファクト・パス：canary-app.yaml
+- バージョン：1
+- Uplad method：Cloud Shell
+
+![アーティファクト 作成](./images/84.png)
+
+コピーした内容をペーストして、「./＜file-name＞」の箇所を「./blue-grenn-app.yaml」に変更してコマンドを実行します。
+
+```
+oci artifacts generic artifact upload-by-path \
+>   --repository-id ocid1.artifactrepository.oc1.uk-london-1.0.amaaaaaassl65iqau22cohp5ulfb5ion66vkd4uz2aerbyr3olbyav7b5k5q \
+>   --artifact-path canary-app.yaml \
+>   --artifact-version 1 \
+>   --content-body ./canary-app.yaml
+```
+以下の結果が返ってくればアップロード完了です。
+```
+{
+  "data": {
+    "artifact-path": "canary-app.yaml",
+    "compartment-id": "ocid1.compartment.oc1..aaaaaaaagp3t6j5zjzg3hrau4i3rtcxvl64cxbcdgpid5smp6avpnfecegqa",
+    "defined-tags": {},
+    "display-name": "canary-app.yaml:1",
+    "freeform-tags": {},
+    "id": "ocid1.genericartifact.oc1.uk-london-1.0.amaaaaaassl65iqadlt552fyxu47nmxxtxl3sb22ak4pui6xrlstojc4stha",
+    "lifecycle-state": "AVAILABLE",
+    "repository-id": "ocid1.artifactrepository.oc1.uk-london-1.0.amaaaaaassl65iqau22cohp5ulfb5ion66vkd4uz2aerbyr3olbyav7b5k5q",
+    "sha256": "d41bb6efd5988e3fbb9646963e1477863bcb567237f4dfd77cf46384b95b9e8c",
+    "size-in-bytes": 1126,
+    "time-created": "2023-01-27T06:50:01.017000+00:00",
+    "version": "1"
+  }
+}
+```
+
+「閉じる」ボタンをクリックします。
+
+![アーティファクト 作成](./images/18.png)
+
+ブラウザを更新するとアップロードしたアーティファクトがリストされます。
+
+![アーティファクト 作成](./images/85.png)
+
+OCI DevOpsの「canary」プロジェクト画面に戻って、アーティファクトに対象のOCIRとアーティファクトレジストリのリポジトリを登録します。
+
+OCI DevOpsの左目メニューから「アーティファクト」を選択します。
+
+![アーティファクト 作成](./images/20.png)
+
+「アーティファクトの追加」ボタンをクリックします。
+
+![アーティファクト 作成](./images/21.png)
+
+以下の設定を行い、「追加」ボタンをクリックします。
+
+- 名前：ocir-repogitory-canary
+- タイプ：コンテナ・イメージ・リポジトリ
+- コンテナ・レジストリのイメージへの完全修飾パスを入力してください：マニフェストファイルに指定したリポジトリを設定してください
+
+![アーティファクト 作成](./images/86.png)
+
+![アーティファクト 作成](./images/23.png)
+
+「アーティファクトの追加」ボタンをクリックします。
+
+![アーティファクト 作成](./images/21.png)
+
+以下の設定を行い、「選択」ボタンをクリックします。
+
+- 名前：artifact-repogitory-canary
+- タイプ：Kubernetesマニフェスト
+
+![アーティファクト 作成](./images/87.png)
+
+以下の設定を行い、「選択」ボタンをクリックします。
+
+- リージョン：対象となるリージョン
+- コンパートメント：対象となるコンパートメント
+- アーティファクト・レジストリ・リポジトリ：artifact-repository-canary
+
+![アーティファクト 作成](./images/88.png)
+
+![アーティファクト 作成](./images/26.png)
+
+「アーティファクト」の「選択」ボタンをクリックします。
+
+![アーティファクト 作成](./images/27.png)
+
+「canary-app.yaml:v1」にチェックを入れて、「選択」ボタンをクリックします。
+
+![アーティファクト 作成](./images/89.png)
+
+![アーティファクト 作成](./images/26.png)
+
+最後に「追加」ボタンをクリックします。
+
+![アーティファクト 作成](./images/23.png)
+
+登録したOCIRとアーティファクト・レジストリのリポジトリがリストされていることを確認します。
+
+![アーティファクト 作成](./images/90.png)
+
+パンくずリストから「canary」を選択します。
+
+![アーティファクト 作成](./images/91.png)
+
+#### 5. デプロイメント・パイプライン 作成
+
+デプロイメント・パイプラインを作成します。  
+左メニューから「デプロイメント・パイプライン」を選択します。
+
+![デプロイメント・パイプライン 作成](./images/31.png)
+
+「パイプラインの作成」ボタンをクリックします。
+
+![デプロイメント・パイプライン 作成](./images/32.png)
+
+以下の設定を行い、「パイプラインの作成」ボタンをクリックします。
+
+- パイプライン名：deploy-to-oke
+
+![デプロイメント・パイプライン 作成](./images/33.png)
+
+![デプロイメント・パイプライン 作成](./images/32.png)
+
+「ステージの追加」ボタンをクリックします。
+
+![デプロイメント・パイプライン 作成](./images/34.png)
+
+「カナリア戦略」を選択して、「次」ボタンをクリックします。
+
+![デプロイメント・パイプライン 作成](./images/92.png)
+
+![デプロイメント・パイプライン 作成](./images/04.png)
+
+以下の設定を行い、「アーティファクトの選択」ボタンをクリックします。
+
+- デプロイメント・タイプ：OKE
+- ステージ名：deploy-strategy-canary
+- 環境：canary-cluster
+- カナリア・ネームスペース：canary
+- NGINXイングレス名：helloworld-ing
+
+![デプロイメント・パイプライン 作成](./images/93.png)
+
+「artifact-repository-canary」を選択して、「変更の保存」ボタンをクリックします。
+
+![デプロイメント・パイプライン 作成](./images/94.png)
+
+![デプロイメント・パイプライン 作成](./images/38.png)
+
+「次」ボタンをクリックします。
+
+![デプロイメント・パイプライン 作成](./images/04.png)
+
+検証制御は、「なし」のままにして、「次」ボタンをクリックします。
+
+![デプロイメント・パイプライン 作成](./images/04.png)
+
+以下の設定を行い、「次」ボタンをクリックします。
+
+- ステージ名：canary
+- ランプアップ制限%：25
+
+![デプロイメント・パイプライン 作成](./images/95.png)
+
+![デプロイメント・パイプライン 作成](./images/04.png)
+
+以下の設定を行い、「次」ボタンをクリックします。
+
+- ステージ名：confirm
+
+![デプロイメント・パイプライン 作成](./images/96.png)
+
+![デプロイメント・パイプライン 作成](./images/04.png)
+
+以下の設定を行い、「追加」ボタンをクリックします。
+
+- ステージ名：deploy
+- 本番ネームスペース：default
+
+![デプロイメント・パイプライン 作成](./images/97.png)
+
+![デプロイメント・パイプライン 作成](./images/23.png)
+
+完了と表示されることを確認して、「閉じる」ボタンをクリックします。
+
+![デプロイメント・パイプライン 作成](./images/98.png)
+
+![デプロイメント・パイプライン 作成](./images/41.png)
+
+パンくずリストから「canary」を選択します。
+
+![デプロイメント・パイプライン 作成](./images/42.png)
+
+#### 6. ビルド・パイプライン 作成
+
+ビルド・パイプラインを作成します。  
+左メニューから「ビルド・パイプライン」を選択します。
+
+![ビルド・パイプライン 作成](./images/43.png)
+
+「ビルド・パイプラインの作成」ボタンをクリックします。
+
+![ビルド・パイプライン 作成](./images/44.png)
+
+以下の設定を行い、「作成」ボタンをクリックします。
+
+- 名前：image-build-ship
+
+![ビルド・パイプライン 作成](./images/45.png)
+
+![ビルド・パイプライン 作成](./images/15.png)
+
+「ステージの追加」ボタンをクリックします。
+
+![ビルド・パイプライン 作成](./images/34.png)
+
+「マネージド・ビルド」を選択して、「次」ボタンをクリックします。
+
+![ビルド・パイプライン 作成](./images/46.png)
+
+![ビルド・パイプライン 作成](./images/04.png)
+
+以下の設定を行い、「選択」ボタンをクリックします。
+
+- ステージ名：container-image-build
+- ビルド仕様ファイル・パス：build_spec.yaml
+
+![ビルド・パイプライン 作成](./images/47.png)
+
+以下の設定を行い、「選択」ボタンをクリックします。
+
+- ソース：接続タイプ：OCIコード・リポジトリ
+- strategy-canary にチェックを入れる
+- ブランチの選択：main
+
+![ビルド・パイプライン 作成](./images/100.png)
+
+![ビルド・パイプライン 作成](./images/26.png)
+
+「追加」ボタンをクリックします。
+
+![ビルド・パイプライン 作成](./images/23.png)
+
+「+」をクリックして、「ステージの追加」を選択します。
+
+![ビルド・パイプライン 作成](./images/49.png)
+
+「アーティファクトの配信」を選択して、「次」ボタンをクリックします。
+
+![ビルド・パイプライン 作成](./images/50.png)
+
+![ビルド・パイプライン 作成](./images/04.png)
+
+以下の設定を行い、「アーティファクトの選択」ボタンをクリックします。
+
+- ステージ名：container-image-ship
+
+![ビルド・パイプライン 作成](./images/51.png)
+
+「ocir-repository-canary」にチェックを入れて、「追加」ボタンをクリックします。
+
+![ビルド・パイプライン 作成](./images/101.png)
+
+![ビルド・パイプライン 作成](./images/53.png)
+
+「ビルド構成/結果アーティファクト名」に「canary_image」と設定を行い、「追加」ボタンをクリックします。
+
+![ビルド・パイプライン 作成](./images/102.png)
+
+![ビルド・パイプライン 作成](./images/23.png)
+
+「+」をクリックして、「ステージの追加」を選択します。
+
+![ビルド・パイプライン 作成](./images/55.png)
+
+「デプロイメントのトリガー」を選択して、「次」ボタンをクリックします。
+
+![ビルド・パイプライン 作成](./images/56.png)
+
+![ビルド・パイプライン 作成](./images/04.png)
+
+以下の設定を行い、「デプロイメント・パイプラインの選択」ボタンをクリックします。
+
+- ステージ名：connect-to-deployment-pipeline
+
+![ビルド・パイプライン 作成](./images/57.png)
+
+「deploy-to-oke」にチェックを入れて、「変更の保存」ボタンをクリックします。
+
+![ビルド・パイプライン 作成](./images/58.png)
+
+![ビルド・パイプライン 作成](./images/38.png)
+
+最後に「追加」ボタンをクリックします。
+
+![ビルド・パイプライン 作成](./images/23.png)
+
+パンくずリストから「canary」を選択します。
+
+![ビルド・パイプライン 作成](./images/103.png)
+
+#### 7. トリガー 作成
+
+ソースコード更新後のプッシュをトリガーにCanaryを実行する設定を行います。  
+左メニューから「トリガー」を選択します。
+
+![トリガー 作成](./images/60.png)
+
+「トリガーの作成」ボタンをクリックします。
+
+![トリガー 作成](./images/61.png)
+
+以下の設定を行い、「選択」ボタンをクリックします。
+
+- 名前：deploy-strategy-canary
+- ソース接続：OCIコード・リポジトリ
+
+![トリガー 作成](./images/104.png)
+
+「strategy-canary」にチェックを入れて、「変更の保存」ボタンをクリックします。
+
+![トリガー 作成](./images/63.png)
+
+![トリガー 作成](./images/38.png)
+
+「アクションの追加」ボタンをクリックします。
+
+![トリガー 作成](./images/64.png)
+
+「プッシュ」にチェックを入れて、「選択」ボタンをクリックします。
+
+![トリガー 作成](./images/65.png)
+
+「image-build-ship」にチェックを入れて、「選択」ボタンをクリックします。
+
+![トリガー 作成](./images/66.png)
+
+![トリガー 作成](./images/26.png)
+
+「アクションの追加」ボタンをクリックします。
+
+![トリガー 作成](./images/67.png)
+
+最後に、「作成」ボタンをクリックします。
+
+![トリガー 作成](./images/15.png)
+
+以上で完了です。
