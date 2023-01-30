@@ -1638,3 +1638,232 @@ OCI DevOpsの左目メニューから「アーティファクト」を選択し�
 ![トリガー 作成](./images/15.png)
 
 以上で完了です。
+
+### カナリア 実行
+
+ソースコードを変更して、first バジョンとしてデプロイします。
+
+```
+cd strategy-canary
+```
+
+表示されるテキストの「Hello, Canary deploy !!」を「Hello, Canary first!!」に変更します。
+
+```
+vim content.html
+```
+```
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+
+<meta charset="UTF-8">
+
+<title>Blue-Green</title>
+
+</head>
+<body>
+
+<h1>Hello, Canary deploy !!</h1> #「Canary deploy first!!」に変更
+
+</body>
+</html>
+```
+
+コード・リポジトリにプッシュします。
+
+```
+git add -A .
+```
+```
+git commit -m "second commit"
+```
+```
+[main 1e304fc] second commit
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+```
+```
+git branch -M main
+```
+```
+git push -u origin main
+```
+```
+Enumerating objects: 7, done.
+Counting objects: 100% (7/7), done.
+Delta compression using up to 2 threads
+Compressing objects: 100% (4/4), done.
+Writing objects: 100% (4/4), 496 bytes | 496.00 KiB/s, done.
+Total 4 (delta 2), reused 0 (delta 0), pack-reused 0
+remote: Resolving deltas: 100% (2/2)
+To https://devops.scmservice.uk-london-1.oci.oraclecloud.com/namespaces/orasejapan/projects/canary/repositories/strategy-canary
+   f70c893..1e304fc  main -> main
+Branch 'main' set up to track remote branch 'main' from 'origin'.
+```
+
+デプロイメント・パイプラインの承認処理を手動で実行します。  
+「confirm」のハンバーガーメニューから「承認」を選択します。
+
+![カナリア 実行](./images/107.png)
+
+「OK」と入力して、「承認」ボタンをクリックします。
+
+![カナリア 実行](./images/108.png)
+
+デプロイメント・パイプラインが成功したことを確認します。
+
+![カナリア 実行](./images/109.png)
+
+ブラウザからアクセスるために、EXTERNAL-IPを確認します。
+
+```
+kubectl get ingress
+```
+```
+NAME             CLASS    HOSTS   ADDRESS           PORTS   AGE
+helloworld-ing   <none>   *       193.xxx.xxx.xxx   80      10m
+```
+
+ブラウザを起動してアクセスします。
+
+```
+http://193.xxx.xxx.xxx/content.html
+```
+
+以下表示されることを確認します。
+
+![カナリア 実行](./images/110.png)
+
+second バージョンとしてデプロイを実行しながらカナリアを確認します。
+
+表示されるテキストの「Hello, Canary deploy first!!」を「Hello, Canary second!!」に変更します。
+
+```
+vim content.html
+```
+```
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+
+<meta charset="UTF-8">
+
+<title>Blue-Green</title>
+
+</head>
+<body>
+
+<h1>Hello, Canary deploy first!!</h1> #「Canary deploy second!!」に変更
+
+</body>
+</html>
+```
+
+コード・リポジトリにプッシュします。
+
+```
+git add -A .
+```
+```
+git commit -m "third commit"
+```
+```
+[main dbeed1d] third commit
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+```
+```
+git branch -M main
+```
+```
+git push -u origin main
+```
+```
+Enumerating objects: 5, done.
+Counting objects: 100% (5/5), done.
+Delta compression using up to 2 threads
+Compressing objects: 100% (3/3), done.
+Writing objects: 100% (3/3), 311 bytes | 311.00 KiB/s, done.
+Total 3 (delta 2), reused 0 (delta 0), pack-reused 0
+remote: Resolving deltas: 100% (2/2)
+To https://devops.scmservice.uk-london-1.oci.oraclecloud.com/namespaces/orasejapan/projects/canary/repositories/strategy-canary
+   1305812..dbeed1d  main -> main
+Branch 'main' set up to track remote branch 'main' from 'origin'.
+```
+
+デプロイメント・パイプラインの承認処理前に、default namespaceにデプロイされている「Hello, Canary deploy first!!」とcanary namespaceにデプロイされている「Hello, Canary deploy second!!」の両方がブラウザで表示されることを確認します。  
+canary namespaceにデプロイされている「Hello, Canary deploy second!!」は、デプロイメント・パイプライン作成時に設定した25%割合で表示されます。
+
+承認処理待ちであることを確認します。
+
+![カナリア 実行](./images/111.png)
+
+ブラウザの更新ボタンを数回押しながら、以下二つの表示が行われることを確認します。
+
+default namespaceにデプロイされている「Hello, Canary deploy first!!」
+
+![カナリア 実行](./images/110.png)
+
+canary namespaceにデプロイされている「Hello, Canary deploy second!!」
+
+![カナリア 実行](./images/112.png)
+
+確認後、デプロイメント・パイプラインの承認処理を手動で実行します。  
+「confirm」のハンバーガーメニューから「承認」を選択します。
+
+![カナリア 実行](./images/107.png)
+
+「OK」と入力して、「承認」ボタンをクリックします。
+
+![カナリア 実行](./images/108.png)
+
+デプロイメント・パイプラインが成功したことを確認します。
+
+![カナリア 実行](./images/109.png)
+
+再度、ブラウザからアクセスます。何度更新ボタンを押しても「Hello, Canary deploy second!!」と表示されることを確認します。
+
+![カナリア 実行](./images/112.png)
+
+承認処理前では、25%の割合でcanary namespaceにトラフィックシフトされていましたが、承認処理後はdefault namespace上のアプリケーションが更新されて、100%の割合で「Hello, Canary deploy second!!」と表示されます。
+
+承認処理待ちの間、canary namespaceのIngressは、「canary-weight: "25"」となっています。
+
+```
+kubectl get ingress -o yaml -n canary
+```
+```
+apiVersion: v1
+items:
+- apiVersion: networking.k8s.io/v1
+  kind: Ingress
+  metadata:
+    annotations:
+      kubernetes.io/ingress.class: nginx
+      nginx.ingress.kubernetes.io/canary: "true"
+      nginx.ingress.kubernetes.io/canary-by-header: redirect-to-canary
+      nginx.ingress.kubernetes.io/canary-weight: "25"
+・
+・＜省略＞
+・
+```
+
+承認処理後は、canary namespaceのIngressは、「canary-weight: "0"」となります。
+
+```
+kubectl get ingress -o yaml -n canary
+```
+```
+apiVersion: v1
+items:
+- apiVersion: networking.k8s.io/v1
+  kind: Ingress
+  metadata:
+    annotations:
+      kubernetes.io/ingress.class: nginx
+      nginx.ingress.kubernetes.io/canary: "true"
+      nginx.ingress.kubernetes.io/canary-by-header: redirect-to-canary
+      nginx.ingress.kubernetes.io/canary-weight: "0"
+・
+・＜省略＞
+・
+```
